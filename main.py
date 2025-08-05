@@ -5,8 +5,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import deque
-from matplotlib.animation import FuncAnimation
-from utils.pose_utils import get_relevant_angles
+from utils.pose_utils  import get_relevant_angles
 from utils.video_stream import setup_video_capture, release_video_capture
 
 # 添加平滑函数
@@ -55,9 +54,7 @@ leg_series = deque(maxlen=100)
 back_series = deque(maxlen=100)
 arm_series = deque(maxlen=100)
 phase_labels = deque(maxlen=100)
-
 phase_spans = []
-last_phase = None
 
 # 主程序
 def main():
@@ -69,65 +66,18 @@ def main():
     tracker = StrokeStateTracker()
     prev_hip = prev_shoulder = prev_wrist = None
     start_time = time.time()
+    frame_count = 0
 
     plt.ion()
     fig, ax = plt.subplots()
+    leg_line, = ax.plot([], [], label='Buttocks', color='green')
+    back_line, = ax.plot([], [], label='Back', color='blue')
+    arm_line, = ax.plot([], [], label='Arms', color='magenta')
     ax.set_ylim(0, 100)
     ax.set_title("Rowing Technique Analysis")
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Movement (px)")
-    leg_line, = ax.plot([], [], label='Buttocks', color='green')
-    back_line, = ax.plot([], [], label='Back', color='blue')
-    arm_line, = ax.plot([], [], label='Arms', color='magenta')
     ax.legend(loc='upper right')
-
-    def update_plot(_):
-        ax.clear()
-        if time_series:
-            t_max = time_series[-1]
-            t_min = max(time_series[0], t_max - 10)
-            idx_start = 0
-            for i, t in enumerate(time_series):
-                if t >= t_min:
-                    idx_start = i
-                    break
-            ts = list(time_series)[idx_start:]
-            legs = list(leg_series)[idx_start:]
-            backs = list(back_series)[idx_start:]
-            arms = list(arm_series)[idx_start:]
-            phases = list(phase_labels)[idx_start:]
-
-            for i in range(1, len(ts)):
-                if phases[i] != phases[i - 1]:
-                    phase_spans.append((ts[i], phases[i]))
-
-            current_bg = "#e6f2ff"
-            if phases:
-                current_bg = "#ffe6cc" if phases[-1] == "Drive" else "#e6f2ff"
-
-            last_span_time = t_min
-            for i in range(len(phase_spans)):
-                span_time, phase = phase_spans[i]
-                if span_time > t_max:
-                    break
-                color = '#ffe6cc' if phase == 'Drive' else '#e6f2ff'
-                ax.axvspan(last_span_time, span_time, facecolor=color, alpha=0.3, edgecolor='none')
-                last_span_time = span_time
-            ax.axvspan(last_span_time, t_max, facecolor=current_bg, alpha=0.3, edgecolor='none')
-
-            ax.plot(ts, legs, label='Buttocks', color='green')
-            ax.plot(ts, backs, label='Back', color='blue')
-            ax.plot(ts, arms, label='Arms', color='magenta')
-            ax.set_xlim(t_min, t_max)
-            max_val = max(max(legs, default=0), max(backs, default=0), max(arms, default=0))
-            ax.set_ylim(0, max(20, max_val + 5))
-            ax.set_title("Rowing Technique Analysis")
-            ax.set_xlabel("Time (s)")
-            ax.set_ylabel("Movement (px)")
-            ax.legend(loc='upper right')
-        return leg_line, back_line, arm_line
-
-    ani = FuncAnimation(fig, update_plot, interval=30)
 
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
@@ -170,6 +120,10 @@ def main():
 
             stroke_phase = tracker.update(wrist[0])
             phase_labels.append(stroke_phase)
+            if len(phase_spans) == 0 or phase_spans[-1][1] != stroke_phase:
+                phase_spans.append((t, stroke_phase))
+            if len(phase_spans) > 200:
+                phase_spans.pop(0)
 
             phase_color = (0, 255, 255) if stroke_phase == "Drive" else (255, 255, 255)
             cv2.putText(frame, f"Phase: {stroke_phase}", (10, 100), cv2.FONT_HERSHEY_SIMPLEX, 3, phase_color, 6)
@@ -191,7 +145,42 @@ def main():
                     )
 
         cv2.imshow("Rowing Technique", frame)
-        # plt.pause(0.001)
+
+        frame_count += 1
+        if frame_count % 10 == 0 and time_series:
+            ax.cla()
+            t_max = time_series[-1]
+            t_min = max(time_series[0], t_max - 10)
+            ts = list(time_series)
+            legs = list(leg_series)
+            backs = list(back_series)
+            arms = list(arm_series)
+            phases = list(phase_labels)
+
+            ax.set_xlim(t_min, t_max)
+            max_val = max(max(legs, default=0), max(backs, default=0), max(arms, default=0))
+            ax.set_ylim(0, max(20, max_val + 5))
+
+            for i in range(1, len(phase_spans)):
+                t_start, phase = phase_spans[i-1]
+                t_end = phase_spans[i][0]
+                if t_end >= t_min:
+                    color = '#ffe6cc' if phase == 'Drive' else '#e6f2ff'
+                    ax.axvspan(t_start, t_end, facecolor=color, alpha=0.3)
+            if phase_spans:
+                last_t, last_phase = phase_spans[-1]
+                color = '#ffe6cc' if last_phase == 'Drive' else '#e6f2ff'
+                ax.axvspan(last_t, t_max, facecolor=color, alpha=0.3)
+
+            ax.plot(ts, legs, label='Buttocks', color='green')
+            ax.plot(ts, backs, label='Back', color='blue')
+            ax.plot(ts, arms, label='Arms', color='magenta')
+            ax.set_title("Rowing Technique Analysis")
+            ax.set_xlabel("Time (s)")
+            ax.set_ylabel("Movement (px)")
+            ax.legend(loc='upper right')
+            plt.pause(0.001)
+
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
