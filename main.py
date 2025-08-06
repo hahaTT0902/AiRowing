@@ -32,7 +32,7 @@ angle_ranges = {
 }
 
 # 阶段追踪，检测状态切换点
-toggle_angles = []  # 存储最大/最小角度点
+toggle_angles = []
 
 class StrokeStateTracker:
     def __init__(self):
