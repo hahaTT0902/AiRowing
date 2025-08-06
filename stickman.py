@@ -22,58 +22,62 @@ with open('log.csv') as f:
             joint_pos = {}
             # 骨盆中心为原点
             joint_pos[23] = np.array([0.0, 0.0])
-            joint_pos[24] = joint_pos[23] + np.array([
-                float(row.get("vec_23_24_dx", 0)),
-                float(row.get("vec_23_24_dy", 0))
-            ])
-            # 躯干
-            joint_pos[11] = joint_pos[23] + np.array([
-                float(row.get("vec_11_23_dx", 0)),
-                float(row.get("vec_11_23_dy", 0))
-            ])
-            joint_pos[12] = joint_pos[24] + np.array([
-                float(row.get("vec_12_24_dx", 0)),
-                float(row.get("vec_12_24_dy", 0))
-            ])
-            # 左臂
-            joint_pos[13] = joint_pos[11] - np.array([
-                float(row.get("vec_11_13_dx", 0)),
-                float(row.get("vec_11_13_dy", 0))
-            ])
-            joint_pos[15] = joint_pos[13] - np.array([
-                float(row.get("vec_13_15_dx", 0)),
-                float(row.get("vec_13_15_dy", 0))
-            ])
-            # 右臂
-            joint_pos[14] = joint_pos[12] - np.array([
-                float(row.get("vec_12_14_dx", 0)),
-                float(row.get("vec_12_14_dy", 0))
-            ])
-            joint_pos[16] = joint_pos[14] - np.array([
-                float(row.get("vec_14_16_dx", 0)),
-                float(row.get("vec_14_16_dy", 0))
-            ])
-            # 左腿
-            joint_pos[25] = joint_pos[23] - np.array([
-                float(row.get("vec_23_25_dx", 0)),
-                float(row.get("vec_23_25_dy", 0))
-            ])
-            joint_pos[27] = joint_pos[25] - np.array([
-                float(row.get("vec_25_27_dx", 0)),
-                float(row.get("vec_25_27_dy", 0))
-            ])
-            # 右腿
-            joint_pos[26] = joint_pos[24] - np.array([
-                float(row.get("vec_24_26_dx", 0)),
-                float(row.get("vec_24_26_dy", 0))
-            ])
-            joint_pos[28] = joint_pos[26] - np.array([
-                float(row.get("vec_26_28_dx", 0)),
-                float(row.get("vec_26_28_dy", 0))
-            ])
-            xs = [joint_pos[idx][0] for idx in joint_indices]
-            ys = [joint_pos[idx][1] for idx in joint_indices]
-            frames.append((xs, ys))
+            try:
+                joint_pos[24] = joint_pos[23] + np.array([
+                    float(row.get("vec_23_24_dx", 0)),
+                    float(row.get("vec_23_24_dy", 0))
+                ])
+                # 躯干
+                joint_pos[11] = joint_pos[23] + np.array([
+                    float(row.get("vec_11_23_dx", 0)),
+                    float(row.get("vec_11_23_dy", 0))
+                ])
+                joint_pos[12] = joint_pos[24] + np.array([
+                    float(row.get("vec_12_24_dx", 0)),
+                    float(row.get("vec_12_24_dy", 0))
+                ])
+                # 左臂
+                joint_pos[13] = joint_pos[11] - np.array([
+                    float(row.get("vec_11_13_dx", 0)),
+                    float(row.get("vec_11_13_dy", 0))
+                ])
+                joint_pos[15] = joint_pos[13] - np.array([
+                    float(row.get("vec_13_15_dx", 0)),
+                    float(row.get("vec_13_15_dy", 0))
+                ])
+                # 右臂
+                joint_pos[14] = joint_pos[12] - np.array([
+                    float(row.get("vec_12_14_dx", 0)),
+                    float(row.get("vec_12_14_dy", 0))
+                ])
+                joint_pos[16] = joint_pos[14] - np.array([
+                    float(row.get("vec_14_16_dx", 0)),
+                    float(row.get("vec_14_16_dy", 0))
+                ])
+                # 左腿
+                joint_pos[25] = joint_pos[23] - np.array([
+                    float(row.get("vec_23_25_dx", 0)),
+                    float(row.get("vec_23_25_dy", 0))
+                ])
+                joint_pos[27] = joint_pos[25] - np.array([
+                    float(row.get("vec_25_27_dx", 0)),
+                    float(row.get("vec_25_27_dy", 0))
+                ])
+                # 右腿
+                joint_pos[26] = joint_pos[24] - np.array([
+                    float(row.get("vec_24_26_dx", 0)),
+                    float(row.get("vec_24_26_dy", 0))
+                ])
+                joint_pos[28] = joint_pos[26] - np.array([
+                    float(row.get("vec_26_28_dx", 0)),
+                    float(row.get("vec_26_28_dy", 0))
+                ])
+                xs = [joint_pos[idx][0] for idx in joint_indices]
+                ys = [joint_pos[idx][1] for idx in joint_indices]
+                frames.append((xs, ys))
+            except Exception as e:
+                print(f"[Warn] 跳过一帧，数据异常: {e}")
+                continue
         except Exception:
             continue
 

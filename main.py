@@ -149,7 +149,7 @@ def get_joint_if_visible(joints, idx, threshold=0.5):
     return joints[idx] if vis > threshold else None
 
 # 主程序
-def main():
+def main(data_callback=None, running_flag=lambda: True):
     cap = setup_video_capture()
     if not cap.isOpened():
         print("Camera failed to open.")
@@ -180,20 +180,9 @@ def main():
         'leg_drive_angle', 'back_angle', 'arm_angle'
     ])
 
-    # 图表初始化
-    plt.ion()
-    fig1, ax1 = plt.subplots()
-    ax1.set_title("Real-Time Movement")
-    ax1.set_xlabel("Time (s)")
-    ax1.set_ylabel("Movement (px)")
-    fig2, ax2 = plt.subplots()
-    ax2.set_title("Angle at Phase Switch")
-    ax2.set_xlabel("Time (s)")
-    ax2.set_ylabel("Angle (°)")
-
     last_feedback_msgs = []
 
-    while cap.isOpened():
+    while cap.isOpened() and running_flag():
         ret, frame = cap.read()
         if not ret:
             break
@@ -201,6 +190,9 @@ def main():
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         result = pose.process(rgb_frame)
         joints = {}
+        stroke_phase = stroke_count = spm = 0
+        angles = {}
+        switch = None
 
         if result.pose_landmarks:
             mp_drawing.draw_landmarks(frame, result.pose_landmarks, mp_pose.POSE_CONNECTIONS)
@@ -212,9 +204,9 @@ def main():
 
             # 骨架高亮与角度显示
             for name, joint_ids in [
-                ('back_angle', (12, 24, 26)),         # 右肩(12), 右髋(24), 右膝(26)
-                ('leg_drive_angle', (24, 26, 28)),    # 右髋(24), 右膝(26), 右踝(28)
-                ('arm_angle', (12, 14, 16))           # 右肩(12), 右肘(14), 右腕(16)
+                ('back_angle', (12, 24, 26)),
+                ('leg_drive_angle', (24, 26, 28)),
+                ('arm_angle', (12, 14, 16))
             ]:
                 if name in angles and all(j in joints for j in joint_ids):
                     p1, p2, p3 = joints[joint_ids[0]], joints[joint_ids[1]], joints[joint_ids[2]]
@@ -231,7 +223,6 @@ def main():
             back_move = relative_movement(prev_shoulder, shoulder)
             arm_move = relative_movement(prev_wrist, wrist)
 
-            # 只有在可见时才更新 prev_*
             if hip is not None:
                 prev_hip = hip
             if shoulder is not None:
@@ -248,7 +239,7 @@ def main():
             if wrist is not None:
                 wrist_x = wrist[0]
             else:
-                wrist_x = 0  # 或者可以选择跳过本帧的 update
+                wrist_x = 0
 
             stroke_phase, stroke_count, spm, switch = tracker.update(wrist_x, t, angles)
             phase_labels.append(stroke_phase)
@@ -257,21 +248,19 @@ def main():
             if len(phase_spans) > 200:
                 phase_spans.pop(0)
 
-            # 统一写入所有数据
             log_writer.writerow([
                 t, stroke_phase, spm, switch if switch is not None else '',
                 *[result.pose_landmarks.landmark[idx].x for idx in joint_indices],
                 *[result.pose_landmarks.landmark[idx].y for idx in joint_indices],
                 *[result.pose_landmarks.landmark[idx].z for idx in joint_indices],
-                *[relative_movement(joints[a], joints[b]) for a, b in skeleton_pairs],
-                *[joints[b][1] - joints[a][1] for a, b in skeleton_pairs],  # dy
-                *[result.pose_landmarks.landmark[b].z - result.pose_landmarks.landmark[a].z for a, b in skeleton_pairs],  # dz
+                *[joints[b][0] - joints[a][0] for a, b in skeleton_pairs],
+                *[joints[b][1] - joints[a][1] for a, b in skeleton_pairs],
+                *[result.pose_landmarks.landmark[b].z - result.pose_landmarks.landmark[a].z for a, b in skeleton_pairs],
                 leg_move, back_move, arm_move,
                 angles.get('leg_drive_angle', 0),
                 angles.get('back_angle', 0),
                 angles.get('arm_angle', 0)
             ])
-
 
             if switch in switch_angle_ranges:
                 phase_name = "Finish" if switch == "Drive→Recovery" else "Catch"
@@ -288,72 +277,31 @@ def main():
                     else:
                         msg = f"{phase_name}: {name} Too Large"
                     feedback_msgs.append(msg)
-                last_feedback_msgs = feedback_msgs  # 更新提示
+                last_feedback_msgs = feedback_msgs
 
-        # 状态信息
+        # 状态信息和提示（仅用于frame传递给GUI，不做窗口显示）
         cv2.putText(frame, f"Phase: {stroke_phase}", (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 2.2, (0, 255, 255), 6)
         cv2.putText(frame, f"Strokes: {stroke_count}", (10, 150), cv2.FONT_HERSHEY_SIMPLEX, 2.2, (255, 255, 255), 6)
         cv2.putText(frame, f"SPM: {spm:.1f}", (10, 220), cv2.FONT_HERSHEY_SIMPLEX, 2.2, (0, 255, 0), 6)
-
-        # 每帧都显示上一次切换的提示
         if last_feedback_msgs:
             for i, msg in enumerate(last_feedback_msgs):
-                # 如果有问题（不是OK），用红色，否则绿色
                 color = (0, 0, 255) if ("Too" in msg or "Unknown" in msg) else (0, 255, 0)
                 cv2.putText(frame, msg, (10, 400 + i*80), cv2.FONT_HERSHEY_SIMPLEX, 2.5, color, 6)
 
-        cv2.imshow("Rowing Technique", frame)
-        frame_count += 1
-        if frame_count % 10 == 0:
-            ax1.cla()
-            ax2.cla()
-
-            # 只显示最近10秒的数据
-            t_now = time_series[-1] if time_series else 0
-            t_min = max(time_series[0], t_now - 10) if time_series else 0
-
-            # 找到最近10秒的索引
-            indices = [i for i, t in enumerate(time_series) if t >= t_min]
-
-            # 动作幅度曲线
-            ax1.set_title("Real-Time Movement")
-            ax1.set_xlabel("Time (s)")
-            ax1.set_ylabel("Movement (px)")
-            ax1.plot([time_series[i] for i in indices], [leg_series[i] for i in indices], label='Buttocks', color='green')
-            ax1.plot([time_series[i] for i in indices], [back_series[i] for i in indices], label='Back', color='blue')
-            ax1.plot([time_series[i] for i in indices], [arm_series[i] for i in indices], label='Arms', color='magenta')
-            # 阶段区间
-            for i in range(1, len(phase_spans)):
-                t_start, phase = phase_spans[i - 1]
-                t_end = phase_spans[i][0]
-                if t_end < t_min:
-                    continue
-                ax1.axvspan(max(t_start, t_min), t_end, facecolor='#ffe6cc' if phase == 'Drive' else '#e6f2ff', alpha=0.3)
-            ax1.set_xlim(t_min, t_now)
-            ax1.legend()
-
-            # 切换瞬间角度图
-            if toggle_angles:
-                times = [x[0] for x in toggle_angles if x[0] >= t_min]
-                for name in ['leg_drive_angle', 'back_angle', 'arm_angle']:
-                    values = [a[2].get(name, 0) for a in toggle_angles if a[0] >= t_min]
-                    ax2.plot(times, values, label=name)
-                ax2.set_title("Angle at Phase Switch")
-                ax2.set_xlabel("Time (s)")
-                ax2.set_ylabel("Angle (°)")
-                ax2.set_xlim(t_min, t_now)
-                ax2.legend()
-
-            plt.pause(0.001)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        # 推送数据到GUI
+        if data_callback:
+            data_callback({
+                'frame': frame.copy(),
+                'time_series': list(time_series),
+                'leg_series': list(leg_series),
+                'back_series': list(back_series),
+                'arm_series': list(arm_series),
+                'phase_spans': list(phase_spans),
+                'toggle_angles': list(toggle_angles),
+            })
 
     release_video_capture(cap)
-    plt.ioff()
-    plt.close('all')
     log_f.close()
     print("\n程序结束")
 
-if __name__ == '__main__':
-    main()
+    # 不要直接运行 main.py !，只作为模块被GUI调用!
