@@ -1,8 +1,3 @@
-当然可以，下面是一个简洁清晰、专业又保留“Work in Progress”说明的 `README.md` 模板，适合放在你的 GitHub 项目主页上：
-
----
-
-```md
 # 🚣‍♀️ AiRowing: AI Rowing Technique Analysis System
 
 **AiRowing** is an AI-powered system that recognizes and analyzes rowing movements in real time.  
@@ -79,7 +74,6 @@ MIT License (to be confirmed)
 
 > 👷‍♂️ **Note**: The system is currently being optimized for indoor rowing analysis. Outdoor rowing support is experimental.
 
-```
 
 ---
 
