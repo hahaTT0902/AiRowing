@@ -49,13 +49,7 @@ _Still under progress. Demo visuals coming soon..._
 
 This is a personal WIP project. If you're interested in AI + biomechanics, feel free to open an issue or suggest improvements.
 
----
 
-## 📜 License
-
-MIT License (to be confirmed)
-
----
 
 > 👷‍♂️ **Note**: The system is currently being optimized for indoor rowing analysis. Outdoor rowing support is experimental.
 
