@@ -28,22 +28,7 @@ It tracks and visualizes key motion metrics — such as leg, back, and hand move
 
 ---
 
-## 📦 Folder Structure (WIP)
 
-```
-
-airowing/
-├── main.py                  # Entry point
-├── utils/
-│   ├── pose\_utils.py        # Angle & keypoint utilities
-│   └── video\_stream.py      # Camera and video input
-├── data/                    # CSV logs, test samples
-├── graphs/                  # Output graphs
-└── README.md
-
-```
-
----
 
 ## 🚧 To Do
 
