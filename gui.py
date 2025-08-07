@@ -79,8 +79,6 @@ class MainWindow(QMainWindow):
             ('orange', 'arm_angle')
         ]
         self.plot2 = PlotWidget("Angle at Phase Switch", "Time (s)", "Angle (°)", lines_info2)
-
-        # 新布局：摄像头在上，两个表格并列在下
         central = QWidget()
         main_vbox = QVBoxLayout()
         main_vbox.addWidget(self.video_widget)  
