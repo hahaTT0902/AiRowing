@@ -289,6 +289,13 @@ def main(data_callback=None, running_flag=lambda: True):
                 cv2.putText(frame, msg, (10, 400 + i*80), cv2.FONT_HERSHEY_SIMPLEX, 2.5, color, 6)
 
         # 推送数据到GUI
+        # 保证toggle_angles始终有内容：无切换点时用当前帧角度填充
+        gui_toggle_angles = list(toggle_angles)
+        if not gui_toggle_angles and angles:
+            # 默认用当前帧，类型用当前状态
+            gui_toggle_angles = [
+                (t, "Drive→Recovery" if stroke_phase == "Recovery" else "Recovery→Drive", angles.copy())
+            ]
         if data_callback:
             data_callback({
                 'frame': frame.copy(),
@@ -297,7 +304,7 @@ def main(data_callback=None, running_flag=lambda: True):
                 'back_series': list(back_series),
                 'arm_series': list(arm_series),
                 'phase_spans': list(phase_spans),
-                'toggle_angles': list(toggle_angles),
+                'toggle_angles': gui_toggle_angles,
             })
 
     release_video_capture(cap)
