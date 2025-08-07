@@ -67,21 +67,29 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("AiRowing 多视图GUI")
+        # 检测屏幕分辨率，设置缩放因子
+        screen = QApplication.primaryScreen()
+        size = screen.size()
+        # 以1920x1080为基准
+        base_w, base_h = 1920, 1080
+        scale_w = size.width() / base_w
+        scale_h = size.height() / base_h
+        self._ui_scale = min(scale_w, scale_h)
+
         self.video_widget = VideoWidget()
-        # 右侧指标条和建议区块
         self.metrics_widget = MetricsWidget()
         self.suggestion_label = QLabel("")
+        # 字体和控件高度自适应缩放
+        sug_font_size = int(15 * self._ui_scale)
         self.suggestion_label.setStyleSheet(
-            "font-size: 15px; color: #2a7c2a; background: #f7f9fa; border-radius: 8px; padding: 8px;"
+            f"font-size: {sug_font_size}px; color: #2a7c2a; background: #f7f9fa; border-radius: 8px; padding: 8px;"
         )
-        self.suggestion_label.setMinimumHeight(48)
+        self.suggestion_label.setMinimumHeight(int(48 * self._ui_scale))
 
         # 左右布局
         main_hbox = QHBoxLayout()
-        # 左侧：摄像头和曲线
         left_vbox = QVBoxLayout()
         left_vbox.addWidget(self.video_widget, 2)
-        # 曲线区块
         lines_info1 = [
             ('green', 'Buttocks'),
             ('blue', 'Back'),
@@ -99,7 +107,6 @@ class MainWindow(QMainWindow):
         plots_hbox.addWidget(self.plot2)
         left_vbox.addLayout(plots_hbox)
         main_hbox.addLayout(left_vbox, 2)
-        # 右侧：指标条、建议区块
         right_vbox = QVBoxLayout()
         right_vbox.addWidget(self.metrics_widget, 1)
         right_vbox.addWidget(self.suggestion_label)
@@ -108,6 +115,9 @@ class MainWindow(QMainWindow):
         central = QWidget()
         central.setLayout(main_hbox)
         self.setCentralWidget(central)
+
+        # 设置窗口初始大小为基准的0.8倍缩放
+        self.resize(int(base_w * self._ui_scale * 0.8), int(base_h * self._ui_scale * 0.8))
 
         # 启动后台线程
         self.worker = WorkerThread()
