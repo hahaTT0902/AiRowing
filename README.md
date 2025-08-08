@@ -1,6 +1,6 @@
-# 🚣‍♀️ AiRowing: AI Rowing Technique Analysis System
+# 🚣‍♀️ GROWin: AI Rowing Technique Analysis System
 
-**AiRowing** is an AI-powered system that recognizes and analyzes rowing movements in real time.  
+**GROWin** is an AI-powered system that recognizes and analyzes rowing movements in real time.  
 It tracks and visualizes key motion metrics — such as leg, back, and hand movement phases — and provides feedback on rowing form and timing.
 
 > ⚠️ **Work In Progress**: This project is actively under development. Core functions are working, but features are being refined and expanded. Stay tuned!
