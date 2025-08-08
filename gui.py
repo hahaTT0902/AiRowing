@@ -40,9 +40,39 @@ class PlotWidget(FigureCanvas):
         self.ax.legend()
         self.fig.tight_layout()
 
-    def update_plot(self, x, ys_list):
+    def update_plot(self, x, ys_list, phase_spans=None, phases=None):
+        self.ax.clear()
+        # 绘制阶段背景色
+        if x and phase_spans:
+            t_min = x[0]
+            t_max = x[-1]
+            current_bg = "#e6f2ff"
+            if phases:
+                current_bg = "#ffe6cc" if phases[-1] == "Drive" else "#e6f2ff"
+            last_span_time = t_min
+            for span_time, phase in phase_spans:
+                # 只绘制在当前区间内的区块
+                if span_time < t_min:
+                    last_span_time = span_time
+                    continue
+                if last_span_time > t_max:
+                    break
+                draw_start = max(last_span_time, t_min)
+                draw_end = min(span_time, t_max)
+                color = '#ffe6cc' if phase == 'Drive' else '#e6f2ff'
+                if draw_start < draw_end:
+                    self.ax.axvspan(draw_start, draw_end, facecolor=color, alpha=0.3, edgecolor='none')
+                last_span_time = span_time
+            # 最后一个区块只画到t_max
+            if last_span_time < t_max:
+                self.ax.axvspan(last_span_time, t_max, facecolor=current_bg, alpha=0.3, edgecolor='none')
+        # 绘制曲线
         for line, y in zip(self.lines, ys_list):
-            line.set_data(x, y)
+            line, = self.ax.plot(x, y, color=line.get_color(), label=line.get_label())
+        self.ax.set_title(self.ax.get_title())
+        self.ax.set_xlabel(self.ax.get_xlabel())
+        self.ax.set_ylabel(self.ax.get_ylabel())
+        self.ax.legend()
         self.ax.relim()
         self.ax.autoscale_view()
         self.draw()
@@ -139,18 +169,18 @@ class MainWindow(QMainWindow):
     def _refresh_plots(self):
         # 曲线区块刷新
         data = self._latest_data
-        # metrics区块只在没有任何历史有效数据时才显示暂无指标数据
         has_metrics = bool(self._last_metrics['finish'] or self._last_metrics['catch'])
         if data is None:
             if not has_metrics:
                 self.metrics_widget.show_nodata()
                 self.suggestion_label.setText("暂无建议")
             else:
-                # 保持上一次内容
                 self.metrics_widget.update_metrics(self._last_metrics['finish'], self._last_metrics['catch'])
                 self.suggestion_label.setText(self._last_suggestions)
             return
         x = data['time_series']
+        phase_spans = data.get('phase_spans', None)
+        phases = data.get('phases', None)
         if x:
             t_now = x[-1]
             t_min = max(x[0], t_now - 10)
@@ -161,7 +191,7 @@ class MainWindow(QMainWindow):
             arm10 = [data['arm_series'][i] for i in indices]
         else:
             x10, leg10, back10, arm10 = [], [], [], []
-        self.plot1.update_plot(x10, [leg10, back10, arm10])
+        self.plot1.update_plot(x10, [leg10, back10, arm10], phase_spans=phase_spans, phases=phases)
         # 角度数据
         if data['toggle_angles']:
             filtered = [a for a in data['toggle_angles'] if a[0] >= t_min]
@@ -170,11 +200,11 @@ class MainWindow(QMainWindow):
                 leg_angle = [a[2].get('leg_drive_angle', 0) for a in filtered]
                 back_angle = [a[2].get('back_angle', 0) for a in filtered]
                 arm_angle = [a[2].get('arm_angle', 0) for a in filtered]
-                self.plot2.update_plot(times, [leg_angle, back_angle, arm_angle])
+                self.plot2.update_plot(times, [leg_angle, back_angle, arm_angle], phase_spans=phase_spans, phases=phases)
             else:
-                self.plot2.update_plot([], [[], [], []])
+                self.plot2.update_plot([], [[], [], []], phase_spans=phase_spans, phases=phases)
         else:
-            self.plot2.update_plot([], [[], [], []])
+            self.plot2.update_plot([], [[], [], []], phase_spans=phase_spans, phases=phases)
         # 指标条和建议区块刷新
         self._update_metrics_and_suggestion()
 
